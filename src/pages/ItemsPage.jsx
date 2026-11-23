@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader } from 'lucide-react'
+import { Search, Loader, Plus, Heart } from 'lucide-react'
 import apiClient from '../config/api'
 
-export default function ItemsPage({ onSelectItem }) {
+export default function ItemsPage({ onSelectItem, onAddItem, favItemIds, onToggleFavItem }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -13,7 +13,7 @@ export default function ItemsPage({ onSelectItem }) {
     const fetchItems = async () => {
       try {
         const res = await apiClient.get('/items')
-        setItems(res.data)
+        setItems(res.data.filter((i) => !i.is_deleted))
       } catch (err) {
         setError('Gagal memuat data item dari server.')
       } finally {
@@ -33,9 +33,14 @@ export default function ItemsPage({ onSelectItem }) {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1>Equipment & Items</h1>
-        <p>Daftar Item dan Efek Pasif Mobile Legends</p>
+      <header className="page-header header-row">
+        <div>
+          <h1>Equipment & Items</h1>
+          <p>Daftar Item dan Efek Pasif Mobile Legends</p>
+        </div>
+        <button className="btn-add" onClick={onAddItem}>
+          <Plus size={16} /> Tambah
+        </button>
       </header>
 
       <div className="search-box">
@@ -70,16 +75,29 @@ export default function ItemsPage({ onSelectItem }) {
       {error && <p className="error-text">{error}</p>}
 
       <div className="card-grid">
-        {filtered.map((item) => (
-          <div key={item.id} className="card" onClick={() => onSelectItem(item)}>
-            <img src={item.image_url} alt={item.name} className="card-img" />
-            <div className="card-body">
-              <span className="badge">{item.category}</span>
-              <h3>{item.name}</h3>
-              <p className="price">{item.price} Gold</p>
+        {filtered.map((item) => {
+          const isFav = favItemIds.includes(item.id)
+          return (
+            <div key={item.id} className="card" onClick={() => onSelectItem(item)}>
+              <button
+                type="button"
+                className={`fav-btn ${isFav ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleFavItem(item.id)
+                }}
+              >
+                <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
+              </button>
+              <img src={item.image_url} alt={item.name} className="card-img" />
+              <div className="card-body">
+                <span className="badge">{item.category}</span>
+                <h3>{item.name}</h3>
+                <p className="price">{item.price} Gold</p>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

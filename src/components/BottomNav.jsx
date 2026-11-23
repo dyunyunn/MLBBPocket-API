@@ -1,9 +1,11 @@
-import { Swords, Shield, User } from 'lucide-react'
+import { Swords, Shield, Heart, Trash2, User } from 'lucide-react'
 
 export default function BottomNav({ activeTab, onChangeTab }) {
   const navItems = [
     { id: 'heroes', label: 'Heroes', icon: Swords },
     { id: 'items', label: 'Items', icon: Shield },
+    { id: 'favorites', label: 'Favorites', icon: Heart },
+    { id: 'trash', label: 'Trash', icon: Trash2 },
     { id: 'profile', label: 'Profile', icon: User },
   ]
 

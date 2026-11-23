@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader } from 'lucide-react'
+import { Search, Loader, Plus, Heart } from 'lucide-react'
 import apiClient from '../config/api'
 
-export default function HeroesPage({ onSelectHero }) {
+export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onToggleFavHero }) {
   const [heroes, setHeroes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -13,7 +13,7 @@ export default function HeroesPage({ onSelectHero }) {
     const fetchHeroes = async () => {
       try {
         const res = await apiClient.get('/heroes')
-        setHeroes(res.data)
+        setHeroes(res.data.filter((h) => !h.is_deleted))
       } catch (err) {
         setError('Gagal memuat data hero dari server.')
       } finally {
@@ -33,9 +33,14 @@ export default function HeroesPage({ onSelectHero }) {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1>MLBBPocket</h1>
-        <p>Katalog Hero & Rekomendasi Build Item</p>
+      <header className="page-header header-row">
+        <div>
+          <h1>MLBBPocket</h1>
+          <p>Katalog Hero & Rekomendasi Build Item</p>
+        </div>
+        <button className="btn-add" onClick={onAddHero}>
+          <Plus size={16} /> Tambah
+        </button>
       </header>
 
       <div className="search-box">
@@ -70,16 +75,29 @@ export default function HeroesPage({ onSelectHero }) {
       {error && <p className="error-text">{error}</p>}
 
       <div className="card-grid">
-        {filtered.map((hero) => (
-          <div key={hero.id} className="card" onClick={() => onSelectHero(hero)}>
-            <img src={hero.image_url} alt={hero.name} className="card-img" />
-            <div className="card-body">
-              <span className="badge">{hero.role}</span>
-              <h3>{hero.name}</h3>
-              <p className="muted">{hero.lane} • {hero.specialty}</p>
+        {filtered.map((hero) => {
+          const isFav = favHeroIds.includes(hero.id)
+          return (
+            <div key={hero.id} className="card" onClick={() => onSelectHero(hero)}>
+              <button
+                type="button"
+                className={`fav-btn ${isFav ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleFavHero(hero.id)
+                }}
+              >
+                <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
+              </button>
+              <img src={hero.image_url} alt={hero.name} className="card-img" />
+              <div className="card-body">
+                <span className="badge">{hero.role}</span>
+                <h3>{hero.name}</h3>
+                <p className="muted">{hero.lane} • {hero.specialty}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
