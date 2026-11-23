@@ -30,7 +30,7 @@ body {
 }
 
 .main-content {
-  padding: 16px 16px 88px;
+  padding: 16px 12px 88px;
 }
 
 .page-header {
@@ -100,11 +100,11 @@ body {
   font-weight: 600;
 }
 
-/* Card Grid (Compact Portrait seperti Katalog) */
+/* Card Grid (3 Kolom di HP, Otomatis Menyesuaikan di Laptop) */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
 }
 
 .card {
@@ -133,19 +133,19 @@ body {
 }
 
 .card-body {
-  padding: 8px;
+  padding: 6px;
 }
 
 .card-body h3 {
-  font-size: 0.85rem;
-  margin: 4px 0 2px;
+  font-size: 0.78rem;
+  margin: 3px 0 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .card-body .muted {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -153,9 +153,9 @@ body {
 
 .badge {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 600;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 6px;
   background: rgba(56, 189, 248, 0.15);
   color: var(--accent);
@@ -175,7 +175,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #fbbf24;
   margin-top: 2px;
@@ -220,6 +220,11 @@ body {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.detail-badges .badge {
+  font-size: 0.75rem;
+  padding: 3px 8px;
 }
 
 .detail-content h2 {
@@ -499,10 +504,10 @@ body {
 /* Favorite Button on Cards */
 .fav-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 28px;
-  height: 28px;
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: rgba(15, 23, 42, 0.75);
