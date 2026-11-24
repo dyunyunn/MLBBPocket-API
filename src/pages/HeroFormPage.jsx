@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Save, Loader } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import apiClient from '../config/api'
 import { compressImageToBase64 } from '../utils/imageHelper'
 
@@ -12,7 +12,9 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
     specialty: initialData?.specialty || '',
     lore: initialData?.lore || '',
     skills: initialData?.skills || '',
-    recommended_build: initialData?.recommended_build || '',
+    recommended_build: Array.isArray(initialData?.recommended_build)
+      ? initialData.recommended_build.join(', ')
+      : initialData?.recommended_build || '',
     image_url: initialData?.image_url || '',
   })
   const [saving, setSaving] = useState(false)
@@ -25,6 +27,7 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setError('')
     try {
       const base64 = await compressImageToBase64(file)
       setForm((prev) => ({ ...prev, image_url: base64 }))
@@ -35,6 +38,11 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!form.name.trim()) {
+      setError('Nama hero wajib diisi.')
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -42,14 +50,19 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
       ...form,
       image_url:
         form.image_url.trim() ||
-        `https://placehold.co/400x400/1e293b/38bdf8?text=${encodeURIComponent(form.name)}`,
+        `https://placehold.co/400x500/1e293b/38bdf8?text=${encodeURIComponent(form.name.trim())}`,
+      is_deleted: false,
     }
 
     try {
-      const res = isEdit
-        ? await apiClient.put(`/heroes/${initialData.id}`, payload)
-        : await apiClient.post('/heroes', payload)
-      onSaved(res.data)
+      let res
+      if (isEdit) {
+        res = await apiClient.put(`/heroes/${initialData.id}`, payload)
+      } else {
+        res = await apiClient.post('/heroes', payload)
+      }
+      const savedData = Array.isArray(res.data) ? res.data[0] : res.data
+      onSaved(savedData || { ...initialData, ...payload })
     } catch (err) {
       setError('Gagal menyimpan data hero. Coba lagi.')
     } finally {
@@ -68,10 +81,16 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
           <h2>{isEdit ? `Edit Hero: ${initialData.name}` : 'Tambah Hero Baru'}</h2>
           {error && <p className="error-text">{error}</p>}
 
-          <form onSubmit={handleSubmit} className="crud-form">
+          <form className="crud-form" onSubmit={handleSubmit}>
             <label>
               Nama Hero *
-              <input name="name" value={form.name} onChange={handleChange} required placeholder="Contoh: Chou" />
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Contoh: Kagura"
+                required
+              />
             </label>
 
             <div className="form-row">
@@ -79,10 +98,10 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
                 Role *
                 <select name="role" value={form.role} onChange={handleChange}>
                   <option value="Fighter">Fighter</option>
-                  <option value="Mage">Mage</option>
                   <option value="Marksman">Marksman</option>
-                  <option value="Assassin">Assassin</option>
+                  <option value="Mage">Mage</option>
                   <option value="Tank">Tank</option>
+                  <option value="Assassin">Assassin</option>
                   <option value="Support">Support</option>
                 </select>
               </label>
@@ -91,35 +110,59 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
                 Lane *
                 <select name="lane" value={form.lane} onChange={handleChange}>
                   <option value="EXP Lane">EXP Lane</option>
-                  <option value="Mid Lane">Mid Lane</option>
                   <option value="Gold Lane">Gold Lane</option>
-                  <option value="Jungle">Jungle</option>
+                  <option value="Mid Lane">Mid Lane</option>
                   <option value="Roam">Roam</option>
+                  <option value="Jungling">Jungling</option>
                 </select>
               </label>
             </div>
 
             <label>
               Specialty
-              <input name="specialty" value={form.specialty} onChange={handleChange} placeholder="Contoh: Chase / Control" />
+              <input
+                name="specialty"
+                value={form.specialty}
+                onChange={handleChange}
+                placeholder="Contoh: Poke / Finisher"
+              />
             </label>
 
             <label>
               Lore
-              <textarea name="lore" rows="3" value={form.lore} onChange={handleChange} placeholder="Kisah singkat hero..." />
+              <textarea
+                name="lore"
+                rows="3"
+                value={form.lore}
+                onChange={handleChange}
+                placeholder="Cerita latar belakang hero..."
+              />
             </label>
 
             <label>
-              Skills
-              <textarea name="skills" rows="3" value={form.skills} onChange={handleChange} placeholder="Passive: ... | Skill 1: ... | Ultimate: ..." />
+              Skills & Combo
+              <textarea
+                name="skills"
+                rows="5"
+                value={form.skills}
+                onChange={handleChange}
+                placeholder={
+                  'Passive: ...\nSkill 1: ...\nSkill 2: ...\nUltimate: ...\nCombo: Skill 1 -> Ultimate -> Skill 1 -> Skill 2'
+                }
+              />
             </label>
 
             <label>
-              Rekomendasi Build Item (pisahkan dengan koma)
-              <input name="recommended_build" value={form.recommended_build} onChange={handleChange} placeholder="Tough Boots, Blade of Heptaseas, Endless Battle..." />
+              Rekomendasi Build Item
+              <input
+                name="recommended_build"
+                value={form.recommended_build}
+                onChange={handleChange}
+                placeholder="Pisahkan dengan koma, contoh: Arcane Boots, Clock of Destiny, Holy Crystal"
+              />
             </label>
 
-<label>
+            <label>
               Pilih Gambar dari Direktori (HP / Laptop)
               <input type="file" accept="image/*" onChange={handleFileChange} />
             </label>
@@ -128,18 +171,8 @@ export default function HeroFormPage({ initialData, onBack, onSaved }) {
               <img src={form.image_url} alt="Preview" className="img-preview" />
             )}
 
-            <label>
-                opsional
-              <input
-                name="image_url"
-                value={form.image_url}
-                onChange={handleChange}
-                placeholder="Contoh: /images/argus.jpg atau kosongkan"
-              />
-            </label>
-
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? <Loader size={16} className="spin" /> : <Save size={16} />}
+              <Save size={18} />{' '}
               {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Hero'}
             </button>
           </form>

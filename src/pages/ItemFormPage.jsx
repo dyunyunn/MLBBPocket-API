@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Save, Loader } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import apiClient from '../config/api'
 import { compressImageToBase64 } from '../utils/imageHelper'
 
@@ -8,7 +8,7 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
   const [form, setForm] = useState({
     name: initialData?.name || '',
     category: initialData?.category || 'Attack',
-    price: initialData?.price ?? 2000,
+    price: initialData?.price || '',
     stats: initialData?.stats || '',
     passive_effect: initialData?.passive_effect || '',
     description: initialData?.description || '',
@@ -24,6 +24,7 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setError('')
     try {
       const base64 = await compressImageToBase64(file)
       setForm((prev) => ({ ...prev, image_url: base64 }))
@@ -34,6 +35,11 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!form.name.trim()) {
+      setError('Nama item wajib diisi.')
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -42,14 +48,19 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
       price: Number(form.price) || 0,
       image_url:
         form.image_url.trim() ||
-        `https://placehold.co/400x400/7f1d1d/fca5a5?text=${encodeURIComponent(form.name)}`,
+        `https://placehold.co/400x500/1e293b/fbbf24?text=${encodeURIComponent(form.name.trim())}`,
+      is_deleted: false,
     }
 
     try {
-      const res = isEdit
-        ? await apiClient.put(`/items/${initialData.id}`, payload)
-        : await apiClient.post('/items', payload)
-      onSaved(res.data)
+      let res
+      if (isEdit) {
+        res = await apiClient.put(`/items/${initialData.id}`, payload)
+      } else {
+        res = await apiClient.post('/items', payload)
+      }
+      const savedData = Array.isArray(res.data) ? res.data[0] : res.data
+      onSaved(savedData || { ...initialData, ...payload })
     } catch (err) {
       setError('Gagal menyimpan data item. Coba lagi.')
     } finally {
@@ -68,10 +79,16 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
           <h2>{isEdit ? `Edit Item: ${initialData.name}` : 'Tambah Item Baru'}</h2>
           {error && <p className="error-text">{error}</p>}
 
-          <form onSubmit={handleSubmit} className="crud-form">
+          <form className="crud-form" onSubmit={handleSubmit}>
             <label>
               Nama Item *
-              <input name="name" value={form.name} onChange={handleChange} required placeholder="Contoh: Immortality" />
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Contoh: Blade of Despair"
+                required
+              />
             </label>
 
             <div className="form-row">
@@ -82,37 +99,67 @@ export default function ItemFormPage({ initialData, onBack, onSaved }) {
                   <option value="Magic">Magic</option>
                   <option value="Defense">Defense</option>
                   <option value="Movement">Movement</option>
+                  <option value="Jungling">Jungling</option>
+                  <option value="Roaming">Roaming</option>
                 </select>
               </label>
 
               <label>
                 Harga (Gold) *
-                <input type="number" name="price" value={form.price} onChange={handleChange} required min="0" />
+                <input
+                  type="number"
+                  name="price"
+                  value={form.price}
+                  onChange={handleChange}
+                  placeholder="Contoh: 3010"
+                  required
+                />
               </label>
             </div>
 
             <label>
               Atribut / Statistik
-              <input name="stats" value={form.stats} onChange={handleChange} placeholder="Contoh: +800 HP, +20 Physical Defense" />
+              <input
+                name="stats"
+                value={form.stats}
+                onChange={handleChange}
+                placeholder="Contoh: +160 Physical Attack, +5% Movement Speed"
+              />
             </label>
 
             <label>
               Efek Pasif Unik
-              <textarea name="passive_effect" rows="3" value={form.passive_effect} onChange={handleChange} placeholder="Penjelasan efek pasif item..." />
+              <textarea
+                name="passive_effect"
+                rows="3"
+                value={form.passive_effect}
+                onChange={handleChange}
+                placeholder="Jelaskan efek pasif unik item..."
+              />
             </label>
 
             <label>
               Deskripsi
-              <textarea name="description" rows="2" value={form.description} onChange={handleChange} placeholder="Kegunaan singkat item..." />
+              <textarea
+                name="description"
+                rows="3"
+                value={form.description}
+                onChange={handleChange}
+                placeholder="Deskripsi singkat kegunaan item..."
+              />
             </label>
 
             <label>
-              opsional
-              <input name="image_url" value={form.image_url} onChange={handleChange} placeholder="Kosongkan untuk gambar otomatis" />
+              Pilih Gambar dari Direktori (HP / Laptop)
+              <input type="file" accept="image/*" onChange={handleFileChange} />
             </label>
 
+            {form.image_url && (
+              <img src={form.image_url} alt="Preview" className="img-preview" />
+            )}
+
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? <Loader size={16} className="spin" /> : <Save size={16} />}
+              <Save size={18} />{' '}
               {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Item'}
             </button>
           </form>

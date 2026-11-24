@@ -1,21 +1,26 @@
 import { useState } from 'react'
-import { ArrowLeft, Sparkles, Layers, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, ShieldAlert, Sparkles, Edit3, Trash2 } from 'lucide-react'
 import apiClient from '../config/api'
 
 export default function HeroDetailPage({ hero, onBack, onEdit, onDeleted }) {
   const [deleting, setDeleting] = useState(false)
-  const buildList = hero.recommended_build
-    ? hero.recommended_build.split(',').map((b) => b.trim())
+
+  const buildList = Array.isArray(hero.recommended_build)
+    ? hero.recommended_build
+    : typeof hero.recommended_build === 'string'
+    ? hero.recommended_build.split(',').map((s) => s.trim()).filter(Boolean)
     : []
 
-  const handleDelete = async () => {
-    if (!window.confirm(`Yakin ingin memindahkan hero "${hero.name}" ke Trash?`)) return
+  const handleSoftDelete = async () => {
+    const ok = window.confirm(`Pindahkan "${hero.name}" ke Trash?`)
+    if (!ok) return
+
     setDeleting(true)
     try {
-      await apiClient.put(`/heroes/${hero.id}`, { ...hero, is_deleted: true })
+      await apiClient.put(`/heroes/${hero.id}`, { is_deleted: true })
       onDeleted()
-    } catch (err) {
-      alert('Gagal menghapus hero.')
+    } catch {
+      alert('Gagal memindahkan hero ke Trash.')
       setDeleting(false)
     }
   }
@@ -23,15 +28,20 @@ export default function HeroDetailPage({ hero, onBack, onEdit, onDeleted }) {
   return (
     <div className="page">
       <div className="detail-top-bar">
-        <button className="back-btn" onClick={onBack}>
+        <button type="button" className="back-btn" onClick={onBack}>
           <ArrowLeft size={18} /> Kembali
         </button>
         <div className="action-group">
-          <button className="btn-edit" onClick={() => onEdit(hero)}>
-            <Pencil size={15} /> Edit
+          <button type="button" className="btn-edit" onClick={() => onEdit(hero)}>
+            <Edit3 size={16} /> Edit
           </button>
-          <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
-            <Trash2 size={15} /> {deleting ? 'Menghapus...' : 'Hapus'}
+          <button
+            type="button"
+            className="btn-danger"
+            disabled={deleting}
+            onClick={handleSoftDelete}
+          >
+            <Trash2 size={16} /> {deleting ? 'Menghapus...' : 'Hapus'}
           </button>
         </div>
       </div>
@@ -44,28 +54,38 @@ export default function HeroDetailPage({ hero, onBack, onEdit, onDeleted }) {
             <span className="badge secondary">{hero.lane}</span>
           </div>
           <h2>{hero.name}</h2>
-          <p className="muted">Specialty: {hero.specialty}</p>
+          <p className="muted">Specialty: {hero.specialty || '-'}</p>
 
-          <section className="detail-section">
-            <h4>Lore</h4>
-            <p>{hero.lore}</p>
-          </section>
-
-          <section className="detail-section">
-            <h4><Sparkles size={16} /> Skills</h4>
-            <p>{hero.skills}</p>
-          </section>
-
-          <section className="detail-section">
-            <h4><Layers size={16} /> Rekomendasi Build Item</h4>
-            <div className="build-tags">
-              {buildList.map((item, idx) => (
-                <span key={idx} className="build-tag">
-                  {idx + 1}. {item}
-                </span>
-              ))}
+          {hero.lore && (
+            <div className="detail-section">
+              <h4>Lore</h4>
+              <p>{hero.lore}</p>
             </div>
-          </section>
+          )}
+
+          {hero.skills && (
+            <div className="detail-section">
+              <h4>
+                <Sparkles size={16} /> Skills & Gameplay
+              </h4>
+              <p className="detail-preline">{hero.skills}</p>
+            </div>
+          )}
+
+          {buildList.length > 0 && (
+            <div className="detail-section">
+              <h4>
+                <ShieldAlert size={16} /> Rekomendasi Build Item
+              </h4>
+              <div className="build-tags">
+                {buildList.map((itemName, idx) => (
+                  <span key={idx} className="build-tag">
+                    {itemName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import BottomNav from './components/BottomNav'
+import { useState, useEffect, useCallback } from 'react'
+import { Swords, Shield, Heart, Trash2, User } from 'lucide-react'
+import SplashScreen from './components/SplashScreen'
 import HeroesPage from './pages/HeroesPage'
 import HeroDetailPage from './pages/HeroDetailPage'
 import HeroFormPage from './pages/HeroFormPage'
@@ -10,36 +11,54 @@ import FavoritesPage from './pages/FavoritesPage'
 import TrashPage from './pages/TrashPage'
 import ProfilePage from './pages/ProfilePage'
 
+const FAV_HEROES_KEY = 'mlbbpocket_fav_heroes'
+const FAV_ITEMS_KEY = 'mlbbpocket_fav_items'
+
+const loadIds = (key) => {
+  try {
+    const raw = localStorage.getItem(key)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true)
   const [activeTab, setActiveTab] = useState('heroes')
   const [selectedHero, setSelectedHero] = useState(null)
+  const [editingHero, setEditingHero] = useState(null)
+  const [isAddingHero, setIsAddingHero] = useState(false)
+
   const [selectedItem, setSelectedItem] = useState(null)
-  const [heroFormMode, setHeroFormMode] = useState(null)
-  const [itemFormMode, setItemFormMode] = useState(null)
+  const [editingItem, setEditingItem] = useState(null)
+  const [isAddingItem, setIsAddingItem] = useState(false)
 
-  const [favHeroIds, setFavHeroIds] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('mlbb_fav_heroes')) || []
-    } catch {
-      return []
-    }
-  })
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const [favItemIds, setFavItemIds] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('mlbb_fav_items')) || []
-    } catch {
-      return []
-    }
-  })
+  const [favHeroIds, setFavHeroIds] = useState(() => loadIds(FAV_HEROES_KEY))
+  const [favItemIds, setFavItemIds] = useState(() => loadIds(FAV_ITEMS_KEY))
 
   useEffect(() => {
-    localStorage.setItem('mlbb_fav_heroes', JSON.stringify(favHeroIds))
+    try {
+      localStorage.setItem(FAV_HEROES_KEY, JSON.stringify(favHeroIds))
+    } catch {
+      // Abaikan jika storage penuh
+    }
   }, [favHeroIds])
 
   useEffect(() => {
-    localStorage.setItem('mlbb_fav_items', JSON.stringify(favItemIds))
+    try {
+      localStorage.setItem(FAV_ITEMS_KEY, JSON.stringify(favItemIds))
+    } catch {
+      // Abaikan jika storage penuh
+    }
   }, [favItemIds])
+
+  const handleFinishSplash = useCallback(() => {
+    setShowSplash(false)
+  }, [])
 
   const toggleFavHero = (id) => {
     setFavHeroIds((prev) =>
@@ -53,99 +72,192 @@ export default function App() {
     )
   }
 
-  const handleChangeTab = (tab) => {
-    setActiveTab(tab)
+  const resetSubViews = () => {
     setSelectedHero(null)
+    setEditingHero(null)
+    setIsAddingHero(false)
     setSelectedItem(null)
-    setHeroFormMode(null)
-    setItemFormMode(null)
+    setEditingItem(null)
+    setIsAddingItem(false)
+  }
+
+  const handleTabChange = (tab) => {
+    resetSubViews()
+    setActiveTab(tab)
+  }
+
+  const triggerRefresh = () => {
+    setRefreshKey((prev) => prev + 1)
+  }
+
+  const renderContent = () => {
+    if (activeTab === 'heroes') {
+      if (isAddingHero || editingHero) {
+        return (
+          <HeroFormPage
+            initialData={editingHero}
+            onBack={() => {
+              setIsAddingHero(false)
+              setEditingHero(null)
+            }}
+            onSaved={(savedHero) => {
+              setIsAddingHero(false)
+              setEditingHero(null)
+              setSelectedHero(savedHero || null)
+              triggerRefresh()
+            }}
+          />
+        )
+      }
+
+      if (selectedHero) {
+        return (
+          <HeroDetailPage
+            hero={selectedHero}
+            onBack={() => setSelectedHero(null)}
+            onEdit={(heroData) => setEditingHero(heroData)}
+            onDeleted={() => {
+              setSelectedHero(null)
+              triggerRefresh()
+            }}
+          />
+        )
+      }
+
+      return (
+        <HeroesPage
+          key={`heroes-${refreshKey}`}
+          onSelectHero={(hero) => setSelectedHero(hero)}
+          onAddHero={() => setIsAddingHero(true)}
+          favHeroIds={favHeroIds}
+          onToggleFavHero={toggleFavHero}
+        />
+      )
+    }
+
+    if (activeTab === 'items') {
+      if (isAddingItem || editingItem) {
+        return (
+          <ItemFormPage
+            initialData={editingItem}
+            onBack={() => {
+              setIsAddingItem(false)
+              setEditingItem(null)
+            }}
+            onSaved={(savedItem) => {
+              setIsAddingItem(false)
+              setEditingItem(null)
+              setSelectedItem(savedItem || null)
+              triggerRefresh()
+            }}
+          />
+        )
+      }
+
+      if (selectedItem) {
+        return (
+          <ItemDetailPage
+            item={selectedItem}
+            onBack={() => setSelectedItem(null)}
+            onEdit={(itemData) => setEditingItem(itemData)}
+            onDeleted={() => {
+              setSelectedItem(null)
+              triggerRefresh()
+            }}
+          />
+        )
+      }
+
+      return (
+        <ItemsPage
+          key={`items-${refreshKey}`}
+          onSelectItem={(item) => setSelectedItem(item)}
+          onAddItem={() => setIsAddingItem(true)}
+          favItemIds={favItemIds}
+          onToggleFavItem={toggleFavItem}
+        />
+      )
+    }
+
+    if (activeTab === 'favorites') {
+      return (
+        <FavoritesPage
+          key={`fav-${refreshKey}`}
+          favHeroIds={favHeroIds}
+          favItemIds={favItemIds}
+          onToggleFavHero={toggleFavHero}
+          onToggleFavItem={toggleFavItem}
+          onSelectHero={(hero) => {
+            setActiveTab('heroes')
+            setSelectedHero(hero)
+          }}
+          onSelectItem={(item) => {
+            setActiveTab('items')
+            setSelectedItem(item)
+          }}
+        />
+      )
+    }
+
+    if (activeTab === 'trash') {
+      return <TrashPage key={`trash-${refreshKey}`} />
+    }
+
+    return <ProfilePage />
   }
 
   return (
     <div className="app-shell">
-      <main className="main-content">
-        {/* HEROES FLOW */}
-        {activeTab === 'heroes' && heroFormMode && (
-          <HeroFormPage
-            initialData={heroFormMode === 'edit' ? selectedHero : null}
-            onBack={() => setHeroFormMode(null)}
-            onSaved={(savedHero) => {
-              if (heroFormMode === 'edit') setSelectedHero(savedHero)
-              setHeroFormMode(null)
-            }}
-          />
-        )}
-        {activeTab === 'heroes' && !heroFormMode && !selectedHero && (
-          <HeroesPage
-            onSelectHero={setSelectedHero}
-            onAddHero={() => setHeroFormMode('create')}
-            favHeroIds={favHeroIds}
-            onToggleFavHero={toggleFavHero}
-          />
-        )}
-        {activeTab === 'heroes' && !heroFormMode && selectedHero && (
-          <HeroDetailPage
-            hero={selectedHero}
-            onBack={() => setSelectedHero(null)}
-            onEdit={() => setHeroFormMode('edit')}
-            onDeleted={() => setSelectedHero(null)}
-          />
-        )}
+      {showSplash && <SplashScreen onFinish={handleFinishSplash} />}
 
-        {/* ITEMS FLOW */}
-        {activeTab === 'items' && itemFormMode && (
-          <ItemFormPage
-            initialData={itemFormMode === 'edit' ? selectedItem : null}
-            onBack={() => setItemFormMode(null)}
-            onSaved={(savedItem) => {
-              if (itemFormMode === 'edit') setSelectedItem(savedItem)
-              setItemFormMode(null)
-            }}
-          />
-        )}
-        {activeTab === 'items' && !itemFormMode && !selectedItem && (
-          <ItemsPage
-            onSelectItem={setSelectedItem}
-            onAddItem={() => setItemFormMode('create')}
-            favItemIds={favItemIds}
-            onToggleFavItem={toggleFavItem}
-          />
-        )}
-        {activeTab === 'items' && !itemFormMode && selectedItem && (
-          <ItemDetailPage
-            item={selectedItem}
-            onBack={() => setSelectedItem(null)}
-            onEdit={() => setItemFormMode('edit')}
-            onDeleted={() => setSelectedItem(null)}
-          />
-        )}
+      <main className="main-content">{renderContent()}</main>
 
-        {/* FAVORITES */}
-        {activeTab === 'favorites' && (
-          <FavoritesPage
-            favHeroIds={favHeroIds}
-            favItemIds={favItemIds}
-            onToggleFavHero={toggleFavHero}
-            onToggleFavItem={toggleFavItem}
-            onSelectHero={(hero) => {
-              setActiveTab('heroes')
-              setSelectedHero(hero)
-            }}
-            onSelectItem={(item) => {
-              setActiveTab('items')
-              setSelectedItem(item)
-            }}
-          />
-        )}
+      <nav className="bottom-nav">
+        <button
+          type="button"
+          className={`nav-item ${activeTab === 'heroes' ? 'active' : ''}`}
+          onClick={() => handleTabChange('heroes')}
+        >
+          <Swords size={20} />
+          <span>Heroes</span>
+        </button>
 
-        {/* TRASH */}
-        {activeTab === 'trash' && <TrashPage />}
+        <button
+          type="button"
+          className={`nav-item ${activeTab === 'items' ? 'active' : ''}`}
+          onClick={() => handleTabChange('items')}
+        >
+          <Shield size={20} />
+          <span>Items</span>
+        </button>
 
-        {/* PROFILE */}
-        {activeTab === 'profile' && <ProfilePage />}
-      </main>
+        <button
+          type="button"
+          className={`nav-item ${activeTab === 'favorites' ? 'active' : ''}`}
+          onClick={() => handleTabChange('favorites')}
+        >
+          <Heart size={20} />
+          <span>Favorites</span>
+        </button>
 
-      <BottomNav activeTab={activeTab} onChangeTab={handleChangeTab} />
+        <button
+          type="button"
+          className={`nav-item ${activeTab === 'trash' ? 'active' : ''}`}
+          onClick={() => handleTabChange('trash')}
+        >
+          <Trash2 size={20} />
+          <span>Trash</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => handleTabChange('profile')}
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </button>
+      </nav>
     </div>
   )
 }

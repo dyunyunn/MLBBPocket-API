@@ -1,6 +1,46 @@
-import { User, Code, GraduationCap } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Code, GraduationCap, Camera } from 'lucide-react'
+import { compressImageToBase64 } from '../utils/imageHelper'
+
+const AVATAR_STORAGE_KEY = 'mlbbpocket_profile_avatar'
 
 export default function ProfilePage() {
+  const [avatar, setAvatar] = useState(() => {
+    try {
+      return localStorage.getItem(AVATAR_STORAGE_KEY) || ''
+    } catch {
+      return ''
+    }
+  })
+  const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    try {
+      if (avatar) {
+        localStorage.setItem(AVATAR_STORAGE_KEY, avatar)
+      } else {
+        localStorage.removeItem(AVATAR_STORAGE_KEY)
+      }
+    } catch {
+      setError('Gagal menyimpan foto profil ke penyimpanan lokal.')
+    }
+  }, [avatar])
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError('')
+    try {
+      const compressed = await compressImageToBase64(file)
+      setAvatar(compressed)
+    } catch {
+      setError('Gagal memproses gambar. Coba pilih file lain.')
+    } finally {
+      e.target.value = ''
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-header">
@@ -9,9 +49,34 @@ export default function ProfilePage() {
       </header>
 
       <div className="profile-card">
-        <div className="avatar">
-          <User size={40} />
+        <div className="avatar-wrapper">
+          <div className="avatar">
+            {avatar ? (
+              <img src={avatar} alt="Foto Profil" className="avatar-img" />
+            ) : (
+              <User size={40} />
+            )}
+          </div>
+          <button
+            type="button"
+            className="avatar-badge"
+            onClick={() => fileInputRef.current?.click()}
+            title="Ganti foto profil"
+            aria-label="Ganti foto profil"
+          >
+            <Camera size={15} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            hidden
+          />
         </div>
+
+        {error && <p className="error-text">{error}</p>}
+
         <h2>Yunita Dwi Ardilasari</h2>
         <p className="muted">NIM: 21120124120001</p>
 

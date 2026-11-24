@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader, Plus, Heart } from 'lucide-react'
+import { Search, Loader, Plus, Heart, Filter } from 'lucide-react'
 import apiClient from '../config/api'
 
-export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onToggleFavHero }) {
+const DEFAULT_ROLES = ['Fighter', 'Marksman', 'Mage', 'Tank', 'Assassin', 'Support']
+const DEFAULT_LANES = ['EXP Lane', 'Gold Lane', 'Mid Lane', 'Roam', 'Jungling']
+
+export default function HeroesPage({
+  onSelectHero,
+  onAddHero,
+  favHeroIds,
+  onToggleFavHero,
+}) {
   const [heroes, setHeroes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedRole, setSelectedRole] = useState('All')
+  const [selectedLane, setSelectedLane] = useState('All')
 
   useEffect(() => {
     const fetchHeroes = async () => {
       try {
         const res = await apiClient.get('/heroes')
         setHeroes(res.data.filter((h) => !h.is_deleted))
-      } catch (err) {
+      } catch {
         setError('Gagal memuat data hero dari server.')
       } finally {
         setLoading(false)
@@ -23,12 +32,20 @@ export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onTogg
     fetchHeroes()
   }, [])
 
-  const roles = ['All', ...new Set(heroes.map((h) => h.role))]
+  const roles = [
+    'All',
+    ...new Set([...DEFAULT_ROLES, ...heroes.map((h) => h.role).filter(Boolean)]),
+  ]
+  const lanes = [
+    'All',
+    ...new Set([...DEFAULT_LANES, ...heroes.map((h) => h.lane).filter(Boolean)]),
+  ]
 
   const filtered = heroes.filter((hero) => {
     const matchName = hero.name.toLowerCase().includes(search.toLowerCase())
     const matchRole = selectedRole === 'All' || hero.role === selectedRole
-    return matchName && matchRole
+    const matchLane = selectedLane === 'All' || hero.lane === selectedLane
+    return matchName && matchRole && matchLane
   })
 
   return (
@@ -38,7 +55,7 @@ export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onTogg
           <h1>MLBBPocket</h1>
           <p>Katalog Hero & Rekomendasi Build Item</p>
         </div>
-        <button className="btn-add" onClick={onAddHero}>
+        <button type="button" className="btn-add" onClick={onAddHero}>
           <Plus size={16} /> Tambah
         </button>
       </header>
@@ -53,16 +70,35 @@ export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onTogg
         />
       </div>
 
-      <div className="pills">
-        {roles.map((role) => (
-          <button
-            key={role}
-            className={`pill ${selectedRole === role ? 'active' : ''}`}
-            onClick={() => setSelectedRole(role)}
+      <div className="filter-toolbar">
+        <div className="pills">
+          {roles.map((role) => (
+            <button
+              key={role}
+              type="button"
+              className={`pill ${selectedRole === role ? 'active' : ''}`}
+              onClick={() => setSelectedRole(role)}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+
+        <label className="filter-select-wrap">
+          <Filter size={15} />
+          <select
+            className="filter-select"
+            value={selectedLane}
+            onChange={(e) => setSelectedLane(e.target.value)}
+            aria-label="Filter Lane"
           >
-            {role}
-          </button>
-        ))}
+            {lanes.map((lane) => (
+              <option key={lane} value={lane}>
+                {lane === 'All' ? 'Semua Lane' : lane}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {loading && (
@@ -74,11 +110,21 @@ export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onTogg
 
       {error && <p className="error-text">{error}</p>}
 
+      {!loading && !error && filtered.length === 0 && (
+        <div className="center-state">
+          <p>Hero tidak ditemukan.</p>
+        </div>
+      )}
+
       <div className="card-grid">
         {filtered.map((hero) => {
           const isFav = favHeroIds.includes(hero.id)
           return (
-            <div key={hero.id} className="card" onClick={() => onSelectHero(hero)}>
+            <div
+              key={hero.id}
+              className="card"
+              onClick={() => onSelectHero(hero)}
+            >
               <button
                 type="button"
                 className={`fav-btn ${isFav ? 'active' : ''}`}
@@ -87,13 +133,15 @@ export default function HeroesPage({ onSelectHero, onAddHero, favHeroIds, onTogg
                   onToggleFavHero(hero.id)
                 }}
               >
-                <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
+                <Heart size={14} fill={isFav ? 'currentColor' : 'none'} />
               </button>
               <img src={hero.image_url} alt={hero.name} className="card-img" />
               <div className="card-body">
                 <span className="badge">{hero.role}</span>
                 <h3>{hero.name}</h3>
-                <p className="muted">{hero.lane} • {hero.specialty}</p>
+                <p className="muted">
+                  {hero.lane} • {hero.specialty || '-'}
+                </p>
               </div>
             </div>
           )
