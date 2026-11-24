@@ -2,13 +2,23 @@ import { useState, useEffect } from 'react'
 import { Trash2, RotateCcw, Loader, Filter } from 'lucide-react'
 import apiClient from '../config/api'
 
+const DEFAULT_ROLES = ['Fighter', 'Marksman', 'Mage', 'Tank', 'Assassin', 'Support']
+const DEFAULT_CATEGORIES = [
+  'Attack',
+  'Magic',
+  'Defense',
+  'Movement',
+  'Jungling',
+  'Roaming',
+]
+
 export default function TrashPage() {
   const [heroes, setHeroes] = useState([])
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
-  const [filter, setFilter] = useState('all') // 'all' | 'heroes' | 'items'
-  const [subFilter, setSubFilter] = useState('all')
+  // Nilai filter: 'all', 'type:heroes', 'type:items', 'role:Mage', 'cat:Magic', dst.
+  const [selectedFilter, setSelectedFilter] = useState('all')
 
   const fetchTrash = async () => {
     setLoading(true)
@@ -65,41 +75,39 @@ export default function TrashPage() {
     }
   }
 
-  const subOptions =
-    filter === 'heroes'
-      ? ['all', ...new Set(heroes.map((h) => h.role).filter(Boolean))]
-      : filter === 'items'
-      ? ['all', ...new Set(items.map((i) => i.category).filter(Boolean))]
-      : [
-          'all',
-          ...new Set([
-            ...heroes.map((h) => h.role).filter(Boolean),
-            ...items.map((i) => i.category).filter(Boolean),
-          ]),
-        ]
+  const heroRoleOptions = [
+    ...new Set([...DEFAULT_ROLES, ...heroes.map((h) => h.role).filter(Boolean)]),
+  ]
+  const itemCategoryOptions = [
+    ...new Set([
+      ...DEFAULT_CATEGORIES,
+      ...items.map((i) => i.category).filter(Boolean),
+    ]),
+  ]
 
-  const filteredHeroes = heroes.filter(
-    (h) => subFilter === 'all' || h.role === subFilter
-  )
-  const filteredItems = items.filter(
-    (i) => subFilter === 'all' || i.category === subFilter
-  )
+  const filteredHeroes = heroes.filter((hero) => {
+    if (selectedFilter === 'all' || selectedFilter === 'type:heroes') return true
+    if (selectedFilter === 'type:items') return false
+    if (selectedFilter.startsWith('role:')) {
+      return hero.role === selectedFilter.replace('role:', '')
+    }
+    if (selectedFilter.startsWith('cat:')) return false
+    return true
+  })
 
-  const totalTrash = heroes.length + items.length
-  const showHeroes =
-    (filter === 'all' || filter === 'heroes') && filteredHeroes.length > 0
-  const showItems =
-    (filter === 'all' || filter === 'items') && filteredItems.length > 0
+  const filteredItems = items.filter((item) => {
+    if (selectedFilter === 'all' || selectedFilter === 'type:items') return true
+    if (selectedFilter === 'type:heroes') return false
+    if (selectedFilter.startsWith('cat:')) {
+      return item.category === selectedFilter.replace('cat:', '')
+    }
+    if (selectedFilter.startsWith('role:')) return false
+    return true
+  })
 
-  const isFilteredEmpty =
-    (filter === 'all' && filteredHeroes.length === 0 && filteredItems.length === 0) ||
-    (filter === 'heroes' && filteredHeroes.length === 0) ||
-    (filter === 'items' && filteredItems.length === 0)
-
-  const handleSelectMainFilter = (nextFilter) => {
-    setFilter(nextFilter)
-    setSubFilter('all')
-  }
+  const showHeroes = filteredHeroes.length > 0
+  const showItems = filteredItems.length > 0
+  const isFilteredEmpty = filteredHeroes.length === 0 && filteredItems.length === 0
 
   return (
     <div className="page">
@@ -109,43 +117,38 @@ export default function TrashPage() {
       </header>
 
       <div className="filter-toolbar">
-        <div className="pills">
-          <button
-            type="button"
-            className={`pill ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('all')}
-          >
-            All ({totalTrash})
-          </button>
-          <button
-            type="button"
-            className={`pill ${filter === 'heroes' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('heroes')}
-          >
-            Heroes ({heroes.length})
-          </button>
-          <button
-            type="button"
-            className={`pill ${filter === 'items' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('items')}
-          >
-            Items ({items.length})
-          </button>
-        </div>
-
         <label className="filter-select-wrap">
           <Filter size={15} />
           <select
             className="filter-select"
-            value={subFilter}
-            onChange={(e) => setSubFilter(e.target.value)}
-            aria-label="Filter Role atau Kategori Sampah"
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+            aria-label="Filter Sampah"
           >
-            {subOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt === 'all' ? 'Semua Role/Kategori' : opt}
-              </option>
-            ))}
+            <option value="all">
+              Semua Sampah ({heroes.length + items.length})
+            </option>
+
+            <optgroup label="Tipe Data">
+              <option value="type:heroes">Heroes ({heroes.length})</option>
+              <option value="type:items">Items ({items.length})</option>
+            </optgroup>
+
+            <optgroup label="Hero (Role)">
+              {heroRoleOptions.map((role) => (
+                <option key={`hero-${role}`} value={`role:${role}`}>
+                  {role}
+                </option>
+              ))}
+            </optgroup>
+
+            <optgroup label="Item (Kategori)">
+              {itemCategoryOptions.map((cat) => (
+                <option key={`item-${cat}`} value={`cat:${cat}`}>
+                  {cat}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
       </div>
@@ -161,11 +164,9 @@ export default function TrashPage() {
         <div className="center-state">
           <Trash2 size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
           <p>
-            {filter === 'heroes'
-              ? 'Tidak ada Hero di sampah yang cocok.'
-              : filter === 'items'
-              ? 'Tidak ada Item di sampah yang cocok.'
-              : 'Tempat sampah kosong.'}
+            {selectedFilter === 'all'
+              ? 'Tempat sampah kosong.'
+              : 'Tidak ada data sampah yang cocok dengan filter ini.'}
           </p>
           <p className="muted">Hero atau Item yang dihapus akan muncul di sini.</p>
         </div>
@@ -173,9 +174,7 @@ export default function TrashPage() {
 
       {!loading && showHeroes && (
         <section className="trash-section">
-          {filter === 'all' && (
-            <h3 className="trash-title">Heroes ({filteredHeroes.length})</h3>
-          )}
+          <h3 className="trash-title">Heroes ({filteredHeroes.length})</h3>
           <div className="trash-list">
             {filteredHeroes.map((hero) => {
               const isBusy = busyId === `heroes-${hero.id}`
@@ -220,9 +219,7 @@ export default function TrashPage() {
 
       {!loading && showItems && (
         <section className="trash-section">
-          {filter === 'all' && (
-            <h3 className="trash-title">Items ({filteredItems.length})</h3>
-          )}
+          <h3 className="trash-title">Items ({filteredItems.length})</h3>
           <div className="trash-list">
             {filteredItems.map((item) => {
               const isBusy = busyId === `items-${item.id}`

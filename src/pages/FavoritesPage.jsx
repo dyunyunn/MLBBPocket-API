@@ -23,8 +23,8 @@ export default function FavoritesPage({
   const [heroes, setHeroes] = useState([])
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // 'all' | 'heroes' | 'items'
-  const [subFilter, setSubFilter] = useState('all')
+  // Nilai filter: 'all', 'type:heroes', 'type:items', 'role:Mage', 'cat:Magic', dst.
+  const [selectedFilter, setSelectedFilter] = useState('all')
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -57,33 +57,29 @@ export default function FavoritesPage({
     ]),
   ]
 
-  const favHeroes = favHeroesBase.filter(
-    (h) => subFilter === 'all' || h.role === subFilter
-  )
-  const favItems = favItemsBase.filter(
-    (i) => subFilter === 'all' || i.category === subFilter
-  )
+  const favHeroes = favHeroesBase.filter((hero) => {
+    if (selectedFilter === 'all' || selectedFilter === 'type:heroes') return true
+    if (selectedFilter === 'type:items') return false
+    if (selectedFilter.startsWith('role:')) {
+      return hero.role === selectedFilter.replace('role:', '')
+    }
+    if (selectedFilter.startsWith('cat:')) return false
+    return true
+  })
 
-  const totalFav = favHeroesBase.length + favItemsBase.length
-  const showHeroes = (filter === 'all' || filter === 'heroes') && favHeroes.length > 0
-  const showItems = (filter === 'all' || filter === 'items') && favItems.length > 0
+  const favItems = favItemsBase.filter((item) => {
+    if (selectedFilter === 'all' || selectedFilter === 'type:items') return true
+    if (selectedFilter === 'type:heroes') return false
+    if (selectedFilter.startsWith('cat:')) {
+      return item.category === selectedFilter.replace('cat:', '')
+    }
+    if (selectedFilter.startsWith('role:')) return false
+    return true
+  })
 
-  const isFilteredEmpty =
-    (filter === 'all' && favHeroes.length === 0 && favItems.length === 0) ||
-    (filter === 'heroes' && favHeroes.length === 0) ||
-    (filter === 'items' && favItems.length === 0)
-
-  const handleSelectMainFilter = (nextFilter) => {
-    setFilter(nextFilter)
-    setSubFilter('all')
-  }
-
-  const dropdownLabel =
-    filter === 'heroes'
-      ? 'Semua Role Hero'
-      : filter === 'items'
-      ? 'Semua Kategori Item'
-      : 'Filter Hero / Item'
+  const showHeroes = favHeroes.length > 0
+  const showItems = favItems.length > 0
+  const isFilteredEmpty = favHeroes.length === 0 && favItems.length === 0
 
   return (
     <div className="page">
@@ -93,72 +89,38 @@ export default function FavoritesPage({
       </header>
 
       <div className="filter-toolbar">
-        <div className="pills">
-          <button
-            type="button"
-            className={`pill ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('all')}
-          >
-            All ({totalFav})
-          </button>
-          <button
-            type="button"
-            className={`pill ${filter === 'heroes' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('heroes')}
-          >
-            Heroes ({favHeroesBase.length})
-          </button>
-          <button
-            type="button"
-            className={`pill ${filter === 'items' ? 'active' : ''}`}
-            onClick={() => handleSelectMainFilter('items')}
-          >
-            Items ({favItemsBase.length})
-          </button>
-        </div>
-
         <label className="filter-select-wrap">
           <Filter size={15} />
           <select
             className="filter-select"
-            value={subFilter}
-            onChange={(e) => setSubFilter(e.target.value)}
-            aria-label="Filter Role Hero atau Kategori Item Favorit"
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+            aria-label="Filter Favorit"
           >
-            <option value="all">{dropdownLabel}</option>
+            <option value="all">
+              Semua Favorit ({favHeroesBase.length + favItemsBase.length})
+            </option>
 
-            {filter === 'all' && (
-              <>
-                <optgroup label="Hero (Role)">
-                  {heroRoleOptions.map((role) => (
-                    <option key={`hero-${role}`} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Item (Kategori)">
-                  {itemCategoryOptions.map((cat) => (
-                    <option key={`item-${cat}`} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </optgroup>
-              </>
-            )}
+            <optgroup label="Tipe Data">
+              <option value="type:heroes">Heroes ({favHeroesBase.length})</option>
+              <option value="type:items">Items ({favItemsBase.length})</option>
+            </optgroup>
 
-            {filter === 'heroes' &&
-              heroRoleOptions.map((role) => (
-                <option key={role} value={role}>
+            <optgroup label="Hero (Role)">
+              {heroRoleOptions.map((role) => (
+                <option key={`hero-${role}`} value={`role:${role}`}>
                   {role}
                 </option>
               ))}
+            </optgroup>
 
-            {filter === 'items' &&
-              itemCategoryOptions.map((cat) => (
-                <option key={cat} value={cat}>
+            <optgroup label="Item (Kategori)">
+              {itemCategoryOptions.map((cat) => (
+                <option key={`item-${cat}`} value={`cat:${cat}`}>
                   {cat}
                 </option>
               ))}
+            </optgroup>
           </select>
         </label>
       </div>
@@ -174,11 +136,9 @@ export default function FavoritesPage({
         <div className="center-state">
           <Heart size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
           <p>
-            {filter === 'heroes'
-              ? 'Belum ada Hero favorit yang cocok.'
-              : filter === 'items'
-              ? 'Belum ada Item favorit yang cocok.'
-              : 'Belum ada Hero atau Item favorit.'}
+            {selectedFilter === 'all'
+              ? 'Belum ada Hero atau Item favorit.'
+              : 'Belum ada favorit yang cocok dengan filter ini.'}
           </p>
           <p className="muted">Klik ikon hati pada kartu untuk menyimpan.</p>
         </div>
@@ -186,9 +146,7 @@ export default function FavoritesPage({
 
       {!loading && showHeroes && (
         <section className="trash-section">
-          {filter === 'all' && (
-            <h3 className="trash-title">Hero Favorit ({favHeroes.length})</h3>
-          )}
+          <h3 className="trash-title">Hero Favorit ({favHeroes.length})</h3>
           <div className="card-grid">
             {favHeroes.map((hero) => (
               <div key={hero.id} className="card" onClick={() => onSelectHero(hero)}>
@@ -216,9 +174,7 @@ export default function FavoritesPage({
 
       {!loading && showItems && (
         <section className="trash-section">
-          {filter === 'all' && (
-            <h3 className="trash-title">Item Favorit ({favItems.length})</h3>
-          )}
+          <h3 className="trash-title">Item Favorit ({favItems.length})</h3>
           <div className="card-grid">
             {favItems.map((item) => (
               <div key={item.id} className="card" onClick={() => onSelectItem(item)}>
