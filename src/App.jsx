@@ -246,11 +246,18 @@ export default function App() {
   }
 
   return (
-    <div
-      className="app-shell"
-      style={{ paddingBottom: isSubPage ? '32px' : '90px' }}
-    >
-      {renderContent()}
+    <div className="app-shell">
+      <main
+        style={{
+          width: '100%',
+          maxWidth: '1100px',
+          margin: '0 auto',
+          padding: isSubPage ? '18px 16px 36px' : '18px 16px 96px',
+          boxSizing: 'border-box',
+        }}
+      >
+        {renderContent()}
+      </main>
       {!isSubPage && (
         <BottomNav
           activeTab={activeTab}
