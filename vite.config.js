@@ -7,26 +7,23 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: { enabled: true },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
       manifest: {
-        name: 'MLBBPocket: Katalog Hero & Build Item',
+        name: 'MLBBPocket',
         short_name: 'MLBBPocket',
-        description: 'Katalog Hero dan Rekomendasi Build Item Mobile Legends',
-        start_url: '/',
+        description: 'Hero Catalog & Build Recommendation MLBB',
+        theme_color: '#070b19',
+        background_color: '#070b19',
         display: 'standalone',
-        background_color: '#0f172a',
-        theme_color: '#0f172a',
         icons: [
           {
-            src: '/icon.svg',
-            sizes: '192x192 512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            src: '/pwa-icon.png',
+            sizes: '512x512',
+            type: 'image/png',
           },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
       },
     }),
   ],

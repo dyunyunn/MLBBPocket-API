@@ -862,17 +862,27 @@ body {
 
 .filter-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 16px;
 }
 
 .filter-toolbar .pills {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
   margin-bottom: 0;
-  flex: 1 1 auto;
-  min-width: 0;
+}
+
+.filter-toolbar .pills::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-toolbar .pill {
+  flex-shrink: 0;
 }
 
 .filter-select-wrap {
@@ -886,8 +896,44 @@ body {
   color: var(--accent);
   width: fit-content;
   max-width: 100%;
-  margin-left: auto;
   flex-shrink: 0;
+}
+
+.filter-select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select option,
+.filter-select optgroup {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Di layar lebar / laptop: sejajar satu baris dan dropdown rata kanan */
+@media (min-width: 768px) {
+  .filter-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .filter-toolbar .pills {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .filter-select-wrap {
+    margin-left: auto;
+  }
 }
 
 .filter-select {
