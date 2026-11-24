@@ -44,12 +44,11 @@ export default function FavoritesPage({
     fetchAll()
   }, [])
 
-  // Cek dari kolom database (is_favorite) ATAU state lokal agar tetap sinkron
   const favHeroesBase = heroes.filter(
-    (h) => h.is_favorite || favHeroIds.includes(h.id)
+    (h) => Boolean(h.is_favorite) || favHeroIds.includes(h.id)
   )
   const favItemsBase = items.filter(
-    (i) => i.is_favorite || favItemIds.includes(i.id)
+    (i) => Boolean(i.is_favorite) || favItemIds.includes(i.id)
   )
 
   const heroRoleOptions = [

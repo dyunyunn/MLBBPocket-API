@@ -1,263 +1,205 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Swords, Shield, Heart, Trash2, User } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import apiClient from './config/api'
 import SplashScreen from './components/SplashScreen'
+import BottomNav from './components/BottomNav'
 import HeroesPage from './pages/HeroesPage'
-import HeroDetailPage from './pages/HeroDetailPage'
-import HeroFormPage from './pages/HeroFormPage'
 import ItemsPage from './pages/ItemsPage'
-import ItemDetailPage from './pages/ItemDetailPage'
-import ItemFormPage from './pages/ItemFormPage'
 import FavoritesPage from './pages/FavoritesPage'
 import TrashPage from './pages/TrashPage'
 import ProfilePage from './pages/ProfilePage'
-
-const FAV_HEROES_KEY = 'mlbbpocket_fav_heroes'
-const FAV_ITEMS_KEY = 'mlbbpocket_fav_items'
-
-const loadIds = (key) => {
-  try {
-    const raw = localStorage.getItem(key)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
+import HeroDetailPage from './pages/HeroDetailPage'
+import ItemDetailPage from './pages/ItemDetailPage'
+import HeroFormPage from './pages/HeroFormPage'
+import ItemFormPage from './pages/ItemFormPage'
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true)
   const [activeTab, setActiveTab] = useState('heroes')
-  const [selectedHero, setSelectedHero] = useState(null)
-  const [editingHero, setEditingHero] = useState(null)
-  const [isAddingHero, setIsAddingHero] = useState(false)
-
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [editingItem, setEditingItem] = useState(null)
-  const [isAddingItem, setIsAddingItem] = useState(false)
-
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const [favHeroIds, setFavHeroIds] = useState(() => loadIds(FAV_HEROES_KEY))
-  const [favItemIds, setFavItemIds] = useState(() => loadIds(FAV_ITEMS_KEY))
+  // State favorit yang disinkronkan dengan Supabase (kolom is_favorite)
+  const [favHeroIds, setFavHeroIds] = useState([])
+  const [favItemIds, setFavItemIds] = useState([])
 
+  // State halaman detail & form
+  const [selectedHero, setSelectedHero] = useState(null)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [heroFormTarget, setHeroFormTarget] = useState(null) // null = tutup, {} = tambah, {id...} = edit
+  const [itemFormTarget, setItemFormTarget] = useState(null)
+
+  const triggerRefresh = () => setRefreshKey((prev) => prev + 1)
+
+  // Ambil daftar favorit terbaru dari database saat aplikasi dimuat / di-refresh
   useEffect(() => {
-    try {
-      localStorage.setItem(FAV_HEROES_KEY, JSON.stringify(favHeroIds))
-    } catch {
-      // Abaikan jika storage penuh
+    const fetchFavorites = async () => {
+      try {
+        const [hRes, iRes] = await Promise.all([
+          apiClient.get('/heroes'),
+          apiClient.get('/items'),
+        ])
+        setFavHeroIds(
+          hRes.data
+            .filter((h) => !h.is_deleted && Boolean(h.is_favorite))
+            .map((h) => h.id)
+        )
+        setFavItemIds(
+          iRes.data
+            .filter((i) => !i.is_deleted && Boolean(i.is_favorite))
+            .map((i) => i.id)
+        )
+      } catch (err) {
+        console.error('Gagal mengambil data favorit dari server:', err)
+      }
     }
-  }, [favHeroIds])
+    fetchFavorites()
+  }, [refreshKey])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(FAV_ITEMS_KEY, JSON.stringify(favItemIds))
-    } catch {
-      // Abaikan jika storage penuh
-    }
-  }, [favItemIds])
+  // Simpan perubahan favorit Hero ke Supabase
+  const handleToggleFavHero = async (heroId) => {
+    const isCurrentlyFav = favHeroIds.includes(heroId)
+    const nextValue = !isCurrentlyFav
 
-  const handleFinishSplash = useCallback(() => {
-    setShowSplash(false)
-  }, [])
-
-  const toggleFavHero = (id) => {
     setFavHeroIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      nextValue ? [...prev, heroId] : prev.filter((id) => id !== heroId)
     )
+
+    try {
+      await apiClient.put(`/heroes/${heroId}`, { is_favorite: nextValue })
+    } catch (err) {
+      console.error('Gagal update favorit hero:', err)
+      setFavHeroIds((prev) =>
+        isCurrentlyFav ? [...prev, heroId] : prev.filter((id) => id !== heroId)
+      )
+      alert('Gagal menyimpan favorit hero ke server.')
+    }
   }
 
-  const toggleFavItem = (id) => {
+  // Simpan perubahan favorit Item ke Supabase
+  const handleToggleFavItem = async (itemId) => {
+    const isCurrentlyFav = favItemIds.includes(itemId)
+    const nextValue = !isCurrentlyFav
+
     setFavItemIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      nextValue ? [...prev, itemId] : prev.filter((id) => id !== itemId)
     )
-  }
 
-  const resetSubViews = () => {
-    setSelectedHero(null)
-    setEditingHero(null)
-    setIsAddingHero(false)
-    setSelectedItem(null)
-    setEditingItem(null)
-    setIsAddingItem(false)
-  }
-
-  const handleTabChange = (tab) => {
-    resetSubViews()
-    setActiveTab(tab)
-  }
-
-  const triggerRefresh = () => {
-    setRefreshKey((prev) => prev + 1)
-  }
-
-  const renderContent = () => {
-    if (activeTab === 'heroes') {
-      if (isAddingHero || editingHero) {
-        return (
-          <HeroFormPage
-            initialData={editingHero}
-            onBack={() => {
-              setIsAddingHero(false)
-              setEditingHero(null)
-            }}
-            onSaved={(savedHero) => {
-              setIsAddingHero(false)
-              setEditingHero(null)
-              setSelectedHero(savedHero || null)
-              triggerRefresh()
-            }}
-          />
-        )
-      }
-
-      if (selectedHero) {
-        return (
-          <HeroDetailPage
-            hero={selectedHero}
-            onBack={() => setSelectedHero(null)}
-            onEdit={(heroData) => setEditingHero(heroData)}
-            onDeleted={() => {
-              setSelectedHero(null)
-              triggerRefresh()
-            }}
-          />
-        )
-      }
-
-      return (
-        <HeroesPage
-          key={`heroes-${refreshKey}`}
-          onSelectHero={(hero) => setSelectedHero(hero)}
-          onAddHero={() => setIsAddingHero(true)}
-          favHeroIds={favHeroIds}
-          onToggleFavHero={toggleFavHero}
-        />
+    try {
+      await apiClient.put(`/items/${itemId}`, { is_favorite: nextValue })
+    } catch (err) {
+      console.error('Gagal update favorit item:', err)
+      setFavItemIds((prev) =>
+        isCurrentlyFav ? [...prev, itemId] : prev.filter((id) => id !== itemId)
       )
+      alert('Gagal menyimpan favorit item ke server.')
     }
+  }
 
-    if (activeTab === 'items') {
-      if (isAddingItem || editingItem) {
-        return (
-          <ItemFormPage
-            initialData={editingItem}
-            onBack={() => {
-              setIsAddingItem(false)
-              setEditingItem(null)
-            }}
-            onSaved={(savedItem) => {
-              setIsAddingItem(false)
-              setEditingItem(null)
-              setSelectedItem(savedItem || null)
-              triggerRefresh()
-            }}
-          />
-        )
-      }
-
-      if (selectedItem) {
-        return (
-          <ItemDetailPage
-            item={selectedItem}
-            onBack={() => setSelectedItem(null)}
-            onEdit={(itemData) => setEditingItem(itemData)}
-            onDeleted={() => {
-              setSelectedItem(null)
-              triggerRefresh()
-            }}
-          />
-        )
-      }
-
-      return (
-        <ItemsPage
-          key={`items-${refreshKey}`}
-          onSelectItem={(item) => setSelectedItem(item)}
-          onAddItem={() => setIsAddingItem(true)}
-          favItemIds={favItemIds}
-          onToggleFavItem={toggleFavItem}
-        />
-      )
-    }
-
-    if (activeTab === 'favorites') {
-      return (
-        <FavoritesPage
-          key={`fav-${refreshKey}`}
-          favHeroIds={favHeroIds}
-          favItemIds={favItemIds}
-          onToggleFavHero={toggleFavHero}
-          onToggleFavItem={toggleFavItem}
-          onSelectHero={(hero) => {
-            setActiveTab('heroes')
-            setSelectedHero(hero)
-          }}
-          onSelectItem={(item) => {
-            setActiveTab('items')
-            setSelectedItem(item)
-          }}
-        />
-      )
-    }
-
-    if (activeTab === 'trash') {
-      return <TrashPage key={`trash-${refreshKey}`} />
-    }
-
-    return <ProfilePage />
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />
   }
 
   return (
     <div className="app-shell">
-      {showSplash && <SplashScreen onFinish={handleFinishSplash} />}
+      {activeTab === 'heroes' && (
+        <HeroesPage
+          key={`heroes-${refreshKey}`}
+          onSelectHero={(hero) => setSelectedHero(hero)}
+          onAddHero={() => setHeroFormTarget({})}
+          favHeroIds={favHeroIds}
+          onToggleFavHero={handleToggleFavHero}
+        />
+      )}
 
-      <main className="main-content">{renderContent()}</main>
+      {activeTab === 'items' && (
+        <ItemsPage
+          key={`items-${refreshKey}`}
+          onSelectItem={(item) => setSelectedItem(item)}
+          onAddItem={() => setItemFormTarget({})}
+          favItemIds={favItemIds}
+          onToggleFavItem={handleToggleFavItem}
+        />
+      )}
 
-      <nav className="bottom-nav">
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'heroes' ? 'active' : ''}`}
-          onClick={() => handleTabChange('heroes')}
-        >
-          <Swords size={20} />
-          <span>Heroes</span>
-        </button>
+      {activeTab === 'favorites' && (
+        <FavoritesPage
+          key={`fav-${refreshKey}`}
+          favHeroIds={favHeroIds}
+          favItemIds={favItemIds}
+          onToggleFavHero={handleToggleFavHero}
+          onToggleFavItem={handleToggleFavItem}
+          onSelectHero={(hero) => setSelectedHero(hero)}
+          onSelectItem={(item) => setSelectedItem(item)}
+        />
+      )}
 
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'items' ? 'active' : ''}`}
-          onClick={() => handleTabChange('items')}
-        >
-          <Shield size={20} />
-          <span>Items</span>
-        </button>
+      {activeTab === 'trash' && (
+        <TrashPage key={`trash-${refreshKey}`} />
+      )}
 
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'favorites' ? 'active' : ''}`}
-          onClick={() => handleTabChange('favorites')}
-        >
-          <Heart size={20} />
-          <span>Favorites</span>
-        </button>
+      {activeTab === 'profile' && (
+        <ProfilePage
+          favHeroCount={favHeroIds.length}
+          favItemCount={favItemIds.length}
+        />
+      )}
 
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'trash' ? 'active' : ''}`}
-          onClick={() => handleTabChange('trash')}
-        >
-          <Trash2 size={20} />
-          <span>Trash</span>
-        </button>
+      {selectedHero && (
+        <HeroDetailPage
+          hero={selectedHero}
+          onBack={() => setSelectedHero(null)}
+          onClose={() => setSelectedHero(null)}
+          onEdit={(hero) => {
+            setSelectedHero(null)
+            setHeroFormTarget(hero)
+          }}
+          onDeleted={() => {
+            setSelectedHero(null)
+            triggerRefresh()
+          }}
+        />
+      )}
 
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => handleTabChange('profile')}
-        >
-          <User size={20} />
-          <span>Profile</span>
-        </button>
-      </nav>
+      {selectedItem && (
+        <ItemDetailPage
+          item={selectedItem}
+          onBack={() => setSelectedItem(null)}
+          onClose={() => setSelectedItem(null)}
+          onEdit={(item) => {
+            setSelectedItem(null)
+            setItemFormTarget(item)
+          }}
+          onDeleted={() => {
+            setSelectedItem(null)
+            triggerRefresh()
+          }}
+        />
+      )}
+
+      {heroFormTarget && (
+        <HeroFormPage
+          initialData={heroFormTarget.id ? heroFormTarget : null}
+          onBack={() => setHeroFormTarget(null)}
+          onClose={() => setHeroFormTarget(null)}
+          onSaved={() => {
+            setHeroFormTarget(null)
+            triggerRefresh()
+          }}
+        />
+      )}
+
+      {itemFormTarget && (
+        <ItemFormPage
+          initialData={itemFormTarget.id ? itemFormTarget : null}
+          onBack={() => setItemFormTarget(null)}
+          onClose={() => setItemFormTarget(null)}
+          onSaved={() => {
+            setItemFormTarget(null)
+            triggerRefresh()
+          }}
+        />
+      )}
+
+      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
 }
