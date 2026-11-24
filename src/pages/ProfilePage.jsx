@@ -77,8 +77,8 @@ export default function ProfilePage() {
 
         {error && <p className="error-text">{error}</p>}
 
-        <h2>Yunita Dwi Ardilasari</h2>
-        <p className="muted">NIM: 21120124120001</p>
+        <h2>Proplayer asli ini mah</h2>
+        <p className="muted">NIM: -</p>
 
         <div className="profile-info">
           <div className="info-row">

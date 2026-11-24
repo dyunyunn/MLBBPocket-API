@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trash2, RotateCcw, Loader, Filter } from 'lucide-react'
+import { Trash2, RotateCcw, Loader, Filter, Search } from 'lucide-react'
 import apiClient from '../config/api'
 
 const DEFAULT_ROLES = ['Fighter', 'Marksman', 'Mage', 'Tank', 'Assassin', 'Support']
@@ -17,7 +17,7 @@ export default function TrashPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
-  // Nilai filter: 'all', 'type:heroes', 'type:items', 'role:Mage', 'cat:Magic', dst.
+  const [search, setSearch] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
 
   const fetchTrash = async () => {
@@ -86,6 +86,8 @@ export default function TrashPage() {
   ]
 
   const filteredHeroes = heroes.filter((hero) => {
+    const matchName = hero.name.toLowerCase().includes(search.toLowerCase())
+    if (!matchName) return false
     if (selectedFilter === 'all' || selectedFilter === 'type:heroes') return true
     if (selectedFilter === 'type:items') return false
     if (selectedFilter.startsWith('role:')) {
@@ -96,6 +98,8 @@ export default function TrashPage() {
   })
 
   const filteredItems = items.filter((item) => {
+    const matchName = item.name.toLowerCase().includes(search.toLowerCase())
+    if (!matchName) return false
     if (selectedFilter === 'all' || selectedFilter === 'type:items') return true
     if (selectedFilter === 'type:heroes') return false
     if (selectedFilter.startsWith('cat:')) {
@@ -115,6 +119,16 @@ export default function TrashPage() {
         <h1>Trash / Sampah</h1>
         <p>Pulihkan data terhapus atau hapus permanen</p>
       </header>
+
+      <div className="search-box">
+        <Search size={18} />
+        <input
+          type="text"
+          placeholder="Cari hero atau item di sampah..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       <div className="filter-toolbar">
         <label className="filter-select-wrap">
@@ -164,9 +178,9 @@ export default function TrashPage() {
         <div className="center-state">
           <Trash2 size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
           <p>
-            {selectedFilter === 'all'
+            {selectedFilter === 'all' && !search
               ? 'Tempat sampah kosong.'
-              : 'Tidak ada data sampah yang cocok dengan filter ini.'}
+              : 'Tidak ada data sampah yang cocok dengan pencarian/filter.'}
           </p>
           <p className="muted">Hero atau Item yang dihapus akan muncul di sini.</p>
         </div>

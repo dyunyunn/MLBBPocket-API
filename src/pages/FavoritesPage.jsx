@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Heart, Loader, Filter } from 'lucide-react'
+import { Heart, Loader, Filter, Search } from 'lucide-react'
 import apiClient from '../config/api'
 
 const DEFAULT_ROLES = ['Fighter', 'Marksman', 'Mage', 'Tank', 'Assassin', 'Support']
@@ -23,7 +23,7 @@ export default function FavoritesPage({
   const [heroes, setHeroes] = useState([])
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  // Nilai filter: 'all', 'type:heroes', 'type:items', 'role:Mage', 'cat:Magic', dst.
+  const [search, setSearch] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
 
   useEffect(() => {
@@ -44,8 +44,13 @@ export default function FavoritesPage({
     fetchAll()
   }, [])
 
-  const favHeroesBase = heroes.filter((h) => favHeroIds.includes(h.id))
-  const favItemsBase = items.filter((i) => favItemIds.includes(i.id))
+  // Cek dari kolom database (is_favorite) ATAU state lokal agar tetap sinkron
+  const favHeroesBase = heroes.filter(
+    (h) => h.is_favorite || favHeroIds.includes(h.id)
+  )
+  const favItemsBase = items.filter(
+    (i) => i.is_favorite || favItemIds.includes(i.id)
+  )
 
   const heroRoleOptions = [
     ...new Set([...DEFAULT_ROLES, ...favHeroesBase.map((h) => h.role).filter(Boolean)]),
@@ -58,6 +63,8 @@ export default function FavoritesPage({
   ]
 
   const favHeroes = favHeroesBase.filter((hero) => {
+    const matchName = hero.name.toLowerCase().includes(search.toLowerCase())
+    if (!matchName) return false
     if (selectedFilter === 'all' || selectedFilter === 'type:heroes') return true
     if (selectedFilter === 'type:items') return false
     if (selectedFilter.startsWith('role:')) {
@@ -68,6 +75,8 @@ export default function FavoritesPage({
   })
 
   const favItems = favItemsBase.filter((item) => {
+    const matchName = item.name.toLowerCase().includes(search.toLowerCase())
+    if (!matchName) return false
     if (selectedFilter === 'all' || selectedFilter === 'type:items') return true
     if (selectedFilter === 'type:heroes') return false
     if (selectedFilter.startsWith('cat:')) {
@@ -87,6 +96,16 @@ export default function FavoritesPage({
         <h1>Favorites</h1>
         <p>Hero & Item andalan yang kamu simpan</p>
       </header>
+
+      <div className="search-box">
+        <Search size={18} />
+        <input
+          type="text"
+          placeholder="Cari nama hero atau item favorit..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       <div className="filter-toolbar">
         <label className="filter-select-wrap">
@@ -136,9 +155,9 @@ export default function FavoritesPage({
         <div className="center-state">
           <Heart size={36} style={{ marginBottom: 8, opacity: 0.4 }} />
           <p>
-            {selectedFilter === 'all'
+            {selectedFilter === 'all' && !search
               ? 'Belum ada Hero atau Item favorit.'
-              : 'Belum ada favorit yang cocok dengan filter ini.'}
+              : 'Tidak ada favorit yang cocok dengan pencarian/filter.'}
           </p>
           <p className="muted">Klik ikon hati pada kartu untuk menyimpan.</p>
         </div>
@@ -155,6 +174,11 @@ export default function FavoritesPage({
                   className="fav-btn active"
                   onClick={(e) => {
                     e.stopPropagation()
+                    setHeroes((prev) =>
+                      prev.map((h) =>
+                        h.id === hero.id ? { ...h, is_favorite: false } : h
+                      )
+                    )
                     onToggleFavHero(hero.id)
                   }}
                 >
@@ -183,6 +207,11 @@ export default function FavoritesPage({
                   className="fav-btn active"
                   onClick={(e) => {
                     e.stopPropagation()
+                    setItems((prev) =>
+                      prev.map((i) =>
+                        i.id === item.id ? { ...i, is_favorite: false } : i
+                      )
+                    )
                     onToggleFavItem(item.id)
                   }}
                 >
