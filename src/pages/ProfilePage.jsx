@@ -1,45 +1,52 @@
-import { useState, useEffect, useRef } from 'react'
-import { User, Code, GraduationCap, Camera } from 'lucide-react'
-import { compressImageToBase64 } from '../utils/imageHelper'
+import { useState, useEffect } from 'react'
+import { User, Code, GraduationCap } from 'lucide-react'
 
-const AVATAR_STORAGE_KEY = 'mlbbpocket_profile_avatar'
+const DEFAULT_PROFILE = {
+  name: 'Yunita Dwi Ardilasari',
+  subtitle: 'NIM: 21120124120001',
+  bio: 'MLBBPocket adalah Progressive Web App (PWA) katalog hero dan rekomendasi build item Mobile Legends yang terintegrasi dengan RESTful API buatan sendiri menggunakan Node.js, Express.js, dan Supabase.',
+  avatar_url: '',
+}
 
 export default function ProfilePage() {
-  const [avatar, setAvatar] = useState(() => {
-    try {
-      return localStorage.getItem(AVATAR_STORAGE_KEY) || ''
-    } catch {
-      return ''
-    }
-  })
-  const [error, setError] = useState('')
-  const fileInputRef = useRef(null)
+  const [profile, setProfile] = useState(DEFAULT_PROFILE)
 
   useEffect(() => {
-    try {
-      if (avatar) {
-        localStorage.setItem(AVATAR_STORAGE_KEY, avatar)
-      } else {
-        localStorage.removeItem(AVATAR_STORAGE_KEY)
-      }
-    } catch {
-      setError('Gagal menyimpan foto profil ke penyimpanan lokal.')
-    }
-  }, [avatar])
+    const fetchProfile = async () => {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-  const handleAvatarChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setError('')
-    try {
-      const compressed = await compressImageToBase64(file)
-      setAvatar(compressed)
-    } catch {
-      setError('Gagal memproses gambar. Coba pilih file lain.')
-    } finally {
-      e.target.value = ''
+      if (!supabaseUrl || !supabaseKey) return
+
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?id=eq.1&select=*`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          }
+        )
+        if (res.ok) {
+          const rows = await res.json()
+          if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0]
+            setProfile({
+              name: row.name || DEFAULT_PROFILE.name,
+              subtitle: row.subtitle || DEFAULT_PROFILE.subtitle,
+              bio: row.bio || DEFAULT_PROFILE.bio,
+              avatar_url: row.avatar_url || '',
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Gagal memuat profil dari Supabase:', err)
+      }
     }
-  }
+
+    fetchProfile()
+  }, [])
 
   return (
     <div className="page">
@@ -51,34 +58,20 @@ export default function ProfilePage() {
       <div className="profile-card">
         <div className="avatar-wrapper">
           <div className="avatar">
-            {avatar ? (
-              <img src={avatar} alt="Foto Profil" className="avatar-img" />
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.name}
+                className="avatar-img"
+              />
             ) : (
               <User size={40} />
             )}
           </div>
-          <button
-            type="button"
-            className="avatar-badge"
-            onClick={() => fileInputRef.current?.click()}
-            title="Ganti foto profil"
-            aria-label="Ganti foto profil"
-          >
-            <Camera size={15} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleAvatarChange}
-            hidden
-          />
         </div>
 
-        {error && <p className="error-text">{error}</p>}
-
-        <h2>Proplayer asli ini mah</h2>
-        <p className="muted">NIM: -</p>
+        <h2>{profile.name}</h2>
+        <p className="muted">{profile.subtitle}</p>
 
         <div className="profile-info">
           <div className="info-row">
@@ -93,11 +86,7 @@ export default function ProfilePage() {
 
         <section className="about-box">
           <h4>Tentang MLBBPocket</h4>
-          <p>
-            MLBBPocket adalah Progressive Web App (PWA) katalog hero dan rekomendasi
-            build item Mobile Legends yang terintegrasi dengan RESTful API buatan
-            sendiri menggunakan Node.js, Express.js, dan Supabase.
-          </p>
+          <p>{profile.bio}</p>
         </section>
       </div>
     </div>

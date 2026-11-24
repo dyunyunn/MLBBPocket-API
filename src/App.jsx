@@ -12,24 +12,24 @@ import ItemDetailPage from './pages/ItemDetailPage'
 import HeroFormPage from './pages/HeroFormPage'
 import ItemFormPage from './pages/ItemFormPage'
 
+const isDeletedFlag = (val) =>
+  val === true || val === 1 || String(val).toLowerCase() === 'true'
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true)
   const [activeTab, setActiveTab] = useState('heroes')
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // State favorit yang disinkronkan dengan Supabase (kolom is_favorite)
   const [favHeroIds, setFavHeroIds] = useState([])
   const [favItemIds, setFavItemIds] = useState([])
 
-  // State halaman detail & form
   const [selectedHero, setSelectedHero] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
-  const [heroFormTarget, setHeroFormTarget] = useState(null) // null = tutup, {} = tambah, {id...} = edit
+  const [heroFormTarget, setHeroFormTarget] = useState(null)
   const [itemFormTarget, setItemFormTarget] = useState(null)
 
   const triggerRefresh = () => setRefreshKey((prev) => prev + 1)
 
-  // Ambil daftar favorit terbaru dari database saat aplikasi dimuat / di-refresh
   useEffect(() => {
     const fetchFavorites = async () => {
       try {
@@ -39,12 +39,12 @@ export default function App() {
         ])
         setFavHeroIds(
           hRes.data
-            .filter((h) => !h.is_deleted && Boolean(h.is_favorite))
+            .filter((h) => !isDeletedFlag(h.is_deleted) && Boolean(h.is_favorite))
             .map((h) => h.id)
         )
         setFavItemIds(
           iRes.data
-            .filter((i) => !i.is_deleted && Boolean(i.is_favorite))
+            .filter((i) => !isDeletedFlag(i.is_deleted) && Boolean(i.is_favorite))
             .map((i) => i.id)
         )
       } catch (err) {
@@ -54,7 +54,10 @@ export default function App() {
     fetchFavorites()
   }, [refreshKey])
 
-  // Simpan perubahan favorit Hero ke Supabase
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [activeTab, selectedHero, selectedItem, heroFormTarget, itemFormTarget])
+
   const handleToggleFavHero = async (heroId) => {
     const isCurrentlyFav = favHeroIds.includes(heroId)
     const nextValue = !isCurrentlyFav
@@ -74,7 +77,6 @@ export default function App() {
     }
   }
 
-  // Simpan perubahan favorit Item ke Supabase
   const handleToggleFavItem = async (itemId) => {
     const isCurrentlyFav = favItemIds.includes(itemId)
     const nextValue = !isCurrentlyFav
@@ -94,58 +96,67 @@ export default function App() {
     }
   }
 
+  const handleTabChange = (nextTab) => {
+    setSelectedHero(null)
+    setSelectedItem(null)
+    setHeroFormTarget(null)
+    setItemFormTarget(null)
+    setActiveTab(nextTab)
+  }
+
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />
   }
 
-  return (
-    <div className="app-shell">
-      {activeTab === 'heroes' && (
-        <HeroesPage
-          key={`heroes-${refreshKey}`}
-          onSelectHero={(hero) => setSelectedHero(hero)}
-          onAddHero={() => setHeroFormTarget({})}
-          favHeroIds={favHeroIds}
-          onToggleFavHero={handleToggleFavHero}
+  const isSubPage = Boolean(
+    heroFormTarget || itemFormTarget || selectedHero || selectedItem
+  )
+
+  const renderContent = () => {
+    if (heroFormTarget) {
+      return (
+        <HeroFormPage
+          initialData={heroFormTarget.id ? heroFormTarget : null}
+          hero={heroFormTarget.id ? heroFormTarget : null}
+          onBack={() => setHeroFormTarget(null)}
+          onClose={() => setHeroFormTarget(null)}
+          onSaved={() => {
+            setHeroFormTarget(null)
+            triggerRefresh()
+          }}
+          onSuccess={() => {
+            setHeroFormTarget(null)
+            triggerRefresh()
+          }}
         />
-      )}
+      )
+    }
 
-      {activeTab === 'items' && (
-        <ItemsPage
-          key={`items-${refreshKey}`}
-          onSelectItem={(item) => setSelectedItem(item)}
-          onAddItem={() => setItemFormTarget({})}
-          favItemIds={favItemIds}
-          onToggleFavItem={handleToggleFavItem}
+    if (itemFormTarget) {
+      return (
+        <ItemFormPage
+          initialData={itemFormTarget.id ? itemFormTarget : null}
+          item={itemFormTarget.id ? itemFormTarget : null}
+          onBack={() => setItemFormTarget(null)}
+          onClose={() => setItemFormTarget(null)}
+          onSaved={() => {
+            setItemFormTarget(null)
+            triggerRefresh()
+          }}
+          onSuccess={() => {
+            setItemFormTarget(null)
+            triggerRefresh()
+          }}
         />
-      )}
+      )
+    }
 
-      {activeTab === 'favorites' && (
-        <FavoritesPage
-          key={`fav-${refreshKey}`}
-          favHeroIds={favHeroIds}
-          favItemIds={favItemIds}
-          onToggleFavHero={handleToggleFavHero}
-          onToggleFavItem={handleToggleFavItem}
-          onSelectHero={(hero) => setSelectedHero(hero)}
-          onSelectItem={(item) => setSelectedItem(item)}
-        />
-      )}
-
-      {activeTab === 'trash' && (
-        <TrashPage key={`trash-${refreshKey}`} />
-      )}
-
-      {activeTab === 'profile' && (
-        <ProfilePage
-          favHeroCount={favHeroIds.length}
-          favItemCount={favItemIds.length}
-        />
-      )}
-
-      {selectedHero && (
+    if (selectedHero) {
+      return (
         <HeroDetailPage
           hero={selectedHero}
+          isFavorite={favHeroIds.includes(selectedHero.id)}
+          onToggleFavorite={() => handleToggleFavHero(selectedHero.id)}
           onBack={() => setSelectedHero(null)}
           onClose={() => setSelectedHero(null)}
           onEdit={(hero) => {
@@ -157,11 +168,15 @@ export default function App() {
             triggerRefresh()
           }}
         />
-      )}
+      )
+    }
 
-      {selectedItem && (
+    if (selectedItem) {
+      return (
         <ItemDetailPage
           item={selectedItem}
+          isFavorite={favItemIds.includes(selectedItem.id)}
+          onToggleFavorite={() => handleToggleFavItem(selectedItem.id)}
           onBack={() => setSelectedItem(null)}
           onClose={() => setSelectedItem(null)}
           onEdit={(item) => {
@@ -173,33 +188,75 @@ export default function App() {
             triggerRefresh()
           }}
         />
-      )}
+      )
+    }
 
-      {heroFormTarget && (
-        <HeroFormPage
-          initialData={heroFormTarget.id ? heroFormTarget : null}
-          onBack={() => setHeroFormTarget(null)}
-          onClose={() => setHeroFormTarget(null)}
-          onSaved={() => {
-            setHeroFormTarget(null)
-            triggerRefresh()
-          }}
+    if (activeTab === 'heroes') {
+      return (
+        <HeroesPage
+          key={`heroes-${refreshKey}`}
+          onSelectHero={(hero) => setSelectedHero(hero)}
+          onAddHero={() => setHeroFormTarget({})}
+          favHeroIds={favHeroIds}
+          onToggleFavHero={handleToggleFavHero}
+        />
+      )
+    }
+
+    if (activeTab === 'items') {
+      return (
+        <ItemsPage
+          key={`items-${refreshKey}`}
+          onSelectItem={(item) => setSelectedItem(item)}
+          onAddItem={() => setItemFormTarget({})}
+          favItemIds={favItemIds}
+          onToggleFavItem={handleToggleFavItem}
+        />
+      )
+    }
+
+    if (activeTab === 'favorites') {
+      return (
+        <FavoritesPage
+          key={`fav-${refreshKey}`}
+          favHeroIds={favHeroIds}
+          favItemIds={favItemIds}
+          onToggleFavHero={handleToggleFavHero}
+          onToggleFavItem={handleToggleFavItem}
+          onSelectHero={(hero) => setSelectedHero(hero)}
+          onSelectItem={(item) => setSelectedItem(item)}
+        />
+      )
+    }
+
+    if (activeTab === 'trash') {
+      return <TrashPage key={`trash-${refreshKey}`} />
+    }
+
+    if (activeTab === 'profile') {
+      return (
+        <ProfilePage
+          favHeroCount={favHeroIds.length}
+          favItemCount={favItemIds.length}
+        />
+      )
+    }
+
+    return null
+  }
+
+  return (
+    <div
+      className="app-shell"
+      style={{ paddingBottom: isSubPage ? '32px' : '90px' }}
+    >
+      {renderContent()}
+      {!isSubPage && (
+        <BottomNav
+          activeTab={activeTab}
+          onChangeTab={handleTabChange}
         />
       )}
-
-      {itemFormTarget && (
-        <ItemFormPage
-          initialData={itemFormTarget.id ? itemFormTarget : null}
-          onBack={() => setItemFormTarget(null)}
-          onClose={() => setItemFormTarget(null)}
-          onSaved={() => {
-            setItemFormTarget(null)
-            triggerRefresh()
-          }}
-        />
-      )}
-
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
 }

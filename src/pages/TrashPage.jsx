@@ -12,6 +12,9 @@ const DEFAULT_CATEGORIES = [
   'Roaming',
 ]
 
+const isDeletedFlag = (val) =>
+  val === true || val === 1 || String(val).toLowerCase() === 'true'
+
 export default function TrashPage() {
   const [heroes, setHeroes] = useState([])
   const [items, setItems] = useState([])
@@ -27,8 +30,8 @@ export default function TrashPage() {
         apiClient.get('/heroes'),
         apiClient.get('/items'),
       ])
-      setHeroes(hRes.data.filter((h) => h.is_deleted))
-      setItems(iRes.data.filter((i) => i.is_deleted))
+      setHeroes(hRes.data.filter((h) => isDeletedFlag(h.is_deleted)))
+      setItems(iRes.data.filter((i) => isDeletedFlag(i.is_deleted)))
     } catch (err) {
       console.error('Gagal memuat data sampah:', err)
     } finally {
