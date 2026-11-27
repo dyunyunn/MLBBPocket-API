@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Zap } from 'lucide-react'
+import './App.css'
 import apiClient from './config/api'
 import SplashScreen from './components/SplashScreen'
 import BottomNav from './components/BottomNav'
@@ -11,6 +13,7 @@ import HeroDetailPage from './pages/HeroDetailPage'
 import ItemDetailPage from './pages/ItemDetailPage'
 import HeroFormPage from './pages/HeroFormPage'
 import ItemFormPage from './pages/ItemFormPage'
+import BuildSimulatorPage from './pages/BuildSimulatorPage'
 
 const isDeletedFlag = (val) =>
   val === true || val === 1 || String(val).toLowerCase() === 'true'
@@ -27,6 +30,7 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [heroFormTarget, setHeroFormTarget] = useState(null)
   const [itemFormTarget, setItemFormTarget] = useState(null)
+  const [showSimulator, setShowSimulator] = useState(false)
 
   const triggerRefresh = () => setRefreshKey((prev) => prev + 1)
 
@@ -56,7 +60,14 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [activeTab, selectedHero, selectedItem, heroFormTarget, itemFormTarget])
+  }, [
+    activeTab,
+    selectedHero,
+    selectedItem,
+    heroFormTarget,
+    itemFormTarget,
+    showSimulator,
+  ])
 
   const handleToggleFavHero = async (heroId) => {
     const isCurrentlyFav = favHeroIds.includes(heroId)
@@ -101,6 +112,7 @@ export default function App() {
     setSelectedItem(null)
     setHeroFormTarget(null)
     setItemFormTarget(null)
+    setShowSimulator(false)
     setActiveTab(nextTab)
   }
 
@@ -109,10 +121,21 @@ export default function App() {
   }
 
   const isSubPage = Boolean(
-    heroFormTarget || itemFormTarget || selectedHero || selectedItem
+    heroFormTarget ||
+      itemFormTarget ||
+      selectedHero ||
+      selectedItem ||
+      showSimulator
   )
 
+  const showSimFab =
+    !isSubPage && activeTab !== 'profile' && activeTab !== 'trash'
+
   const renderContent = () => {
+    if (showSimulator) {
+      return <BuildSimulatorPage onBack={() => setShowSimulator(false)} />
+    }
+
     if (heroFormTarget) {
       return (
         <HeroFormPage
@@ -258,6 +281,17 @@ export default function App() {
       >
         {renderContent()}
       </main>
+      {showSimFab && (
+        <button
+          type="button"
+          className="sim-fab"
+          onClick={() => setShowSimulator(true)}
+          title="Buka Simulasi Build"
+        >
+          <Zap size={17} />
+          <span>Simulasi Build</span>
+        </button>
+      )}
       {!isSubPage && (
         <BottomNav
           activeTab={activeTab}
